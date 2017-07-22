@@ -4,18 +4,19 @@ import math
 import numpy as np
 import random
 import scipy.stats as stats
+import tqdm
 
 __author__ = 'Giulio Rossetti'
 __license__ = "GPL"
 __email__ = "giulio.rossetti@gmail.com"
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 
 class RDyn(object):
 
-    def __init__(self, size=1000, iterations=1000, avg_deg=6, sigma=.8,
-                 lambdad=.15, alpha=2.5, paction=.5, prenewal=.1,
-                 conductance=.7, new_node=.0, del_node=.0, max_evts=1):
+    def __init__(self, size=1000, iterations=1000, avg_deg=15, sigma=.7,
+                 lambdad=1, alpha=3, paction=1, prenewal=.8,
+                 quality_threshold=.3, new_node=.0, del_node=.0, max_evts=1):
 
         # set the network generator parameters
         self.size = size
@@ -30,26 +31,35 @@ class RDyn(object):
         self.del_node = del_node
         self.max_evts = max_evts
 
+        # event targets
+        self.communities_involved = []
+
         # initialize communities data structures
         self.communities = {}
         self.node_to_com = []
         self.total_coms = 0
         self.performed_community_action = "START\n"
-        self.conductance = conductance
+        self.quality_threshold = quality_threshold
         self.exp_node_degs = []
 
         # initialize the graph
         self.graph = nx.empty_graph(self.size)
 
         # initialize output files
-        self.output_dir = "results/%s_%s_%s_%s_%s_%s_%s" % \
-            (self.size, self.iterations, self.avg_deg, self.sigma, self.renewal, self.conductance, self.max_evts)
-        os.mkdir(self.output_dir)
-        self.out_interactions = open("%s/interactions.txt" % self.output_dir, "w")
-        self.out_events = open("%s/events.txt" % self.output_dir, "w")
+        self.output_dir = "results%s%s_%s_%s_%s_%s_%s_%s" % \
+            (os.sep, self.size, self.iterations, self.avg_deg, self.sigma, self.renewal, self.quality_threshold, self.max_evts)
+
+        if not os.path.exists(self.output_dir):
+            os.makedirs(self.output_dir)
+
+        self.out_interactions = open("%s%sinteractions.txt" % (self.output_dir, os.sep), "w")
+        self.out_events = open("%s%sevents.txt" % (self.output_dir, os.sep), "w")
         self.stable = 0
 
-    def get_assignation(self, community_sizes):
+        self.it = 0
+        self.count = 0
+
+    def __get_assignation(self, community_sizes):
 
         degs = [(i, self.exp_node_degs[i]) for i in xrange(0, len(self.exp_node_degs))]
 
@@ -96,7 +106,7 @@ class RDyn(object):
             self.node_to_com.append(ntc[n])
 
     @staticmethod
-    def truncated_power_law(alpha, maxv, minv=1):
+    def __truncated_power_law(alpha, maxv, minv=1):
         """
 
         :param maxv:
@@ -110,7 +120,7 @@ class RDyn(object):
         pmf /= pmf.sum()
         return stats.rv_discrete(values=(range(minv, maxv + 1), pmf))
 
-    def add_node(self):
+    def __add_node(self):
         nid = self.size
         self.graph.add_node(nid)
         cid = random.sample(self.communities.keys(), 1)[0]
@@ -123,7 +133,7 @@ class RDyn(object):
         self.exp_node_degs.append(deg)
         self.size += 1
 
-    def remove_node(self, it, count):
+    def __remove_node(self):
 
         com_sel = [c for c, v in self.communities.iteritems() if len(v) > 3]
         if len(com_sel) > 0:
@@ -133,17 +143,17 @@ class RDyn(object):
             candidates = [k for k in s.degree() if s.degree()[k] == min_value]
             nid = random.sample(candidates, 1)[0]
             for e in self.graph.edges([nid]):
-                count += 1
-                self.out_interactions.write("%s\t%s\t-\t%s\t%s\n" % (it, count, e[0], e[1]))
+                self.count += 1
+                self.out_interactions.write("%s\t%s\t-\t%s\t%s\n" % (self.it, self.count, e[0], e[1]))
                 self.graph.remove_edge(e[0], e[1])
 
             self.exp_node_degs[nid] = 0
             self.node_to_com[nid] = -1
             nodes = set(self.communities[cid])
             self.communities[cid] = list(nodes - {nid})
-            self.graph.remove_node(nid)
+            self.graph.__remove_node(nid)
 
-    def get_degree_sequence(self):
+    def __get_degree_sequence(self):
         """
 
         :return:
@@ -153,46 +163,66 @@ class RDyn(object):
         minx = float(self.avg_deg) / (2 ** (1 / (self.exponent - 1)))
 
         while True:
-            exp_deg_dist = self.truncated_power_law(self.exponent, self.size, int(math.ceil(minx)))
+            exp_deg_dist = self.__truncated_power_law(self.exponent, self.size, int(math.ceil(minx)))
             degs = list(exp_deg_dist.rvs(size=self.size))
             if nx.is_valid_degree_sequence(degs):
                 return degs, int(minx)
 
-    def clean_targets(self, candidates, exp_node_deg, n):
-        res = {t: exp_node_deg[t] - self.graph.degree(t) for t in candidates if
-               (exp_node_deg[t] - self.graph.degree(t)) > 0 and t != n}
-
-        # PA selection on remaining slots
-        if len(res) > 0:
-            return res
-
-        return {}
-
-    def test_communities(self, cut):
-        for c in self.communities.values():
+    def __test_communities(self):
+        mcond = 0
+        for k in self.communities_involved:
+            c = self.communities[k]
             if len(c) == 0:
                 return False
 
             s = self.graph.subgraph(c)
             comps = nx.number_connected_components(s)
-            s_degs = s.degree()
-            g_degs = self.graph.degree(c)
 
-            # Conductance
-            edge_across = sum([g_degs[n] - s_degs[n] for n in c])
-            c_nodes_total_edges = s.number_of_edges() + edge_across
-            nodes_total_edges = self.graph.number_of_edges() - s.number_of_edges()
-
-            ratio = 0
-            if edge_across > 0:
-                ratio = float(edge_across)/min(c_nodes_total_edges, nodes_total_edges)
-
-            if comps > 1 or ratio > cut:
+            if comps > 1:
+                cs = nx.connected_components(s)
+                i = random.sample(cs.next(), 1)[0]
+                j = random.sample(cs.next(), 1)[0]
+                timeout = (self.it + 1) + int(random.expovariate(self.lambdad))
+                self.graph.add_edge(i, j, {"d": timeout})
+                self.count += 1
+                self.out_interactions.write("%s\t%s\t+\t%s\t%s\n" % (self.it, self.count, i, j))
                 return False
+
+            score = self.__conductance_test(k, s)
+            if score > mcond:
+                mcond = score
+        if mcond > self.quality_threshold:
+            return False
 
         return True
 
-    def generate_event(self, it):
+    def __conductance_test(self, comid, community):
+        s_degs = community.degree()
+        g_degs = self.graph.degree(community.nodes())
+
+        # Conductance
+        edge_across = 2 * sum([g_degs[n] - s_degs[n] for n in community.nodes()])
+        c_nodes_total_edges = community.number_of_edges() + (2 * edge_across)
+
+        if edge_across > 0:
+            ratio = float(edge_across) / float(c_nodes_total_edges)
+            if ratio > self.quality_threshold:
+                self.communities_involved.append(comid)
+                self.communities_involved = list(set(self.communities_involved))
+
+                for i in community.nodes():
+                    nn = self.graph.neighbors(i)
+                    for j in nn:
+                        if j not in community.nodes():
+                            self.count += 1
+                            self.out_interactions.write("%s\t%s\t-\t%s\t%s\n" % (self.it, self.count, i, j))
+                            self.graph.remove_edge(i, j)
+                            continue
+            return ratio
+        return 0
+
+    def __generate_event(self, simplified=True):
+        communities_involved = []
         self.stable += 1
 
         options = ["M", "S"]
@@ -201,11 +231,14 @@ class RDyn(object):
         evs = np.random.choice(options, evt_number, p=[.5, .5], replace=True)
         chosen = []
 
-        self.output_communities(it)
+        if len(self.communities) == 1:
+            evs = "S"
+
+        self.__output_communities()
         if "START" in self.performed_community_action:
-            self.out_events.write("%s:\t%s" % (it, self.performed_community_action))
+            self.out_events.write("%s:\t%s" % (self.it, self.performed_community_action))
         else:
-            self.out_events.write("%s:\n%s" % (it, self.performed_community_action))
+            self.out_events.write("%s:\n%s" % (self.it, self.performed_community_action))
 
         self.performed_community_action = ""
 
@@ -215,7 +248,6 @@ class RDyn(object):
                 # Generate a single merge
                 if len(self.communities) == 1:
                     continue
-
                 candidates = list(set(self.communities.keys()) - set(chosen))
 
                 # promote merging of small communities
@@ -231,6 +263,7 @@ class RDyn(object):
 
                 # ids = random.sample(candidates, 2)
                 chosen.extend(ids)
+                communities_involved.extend([ids[0]])
 
                 for node in self.communities[ids[1]]:
                     self.node_to_com[node] = ids[0]
@@ -264,6 +297,7 @@ class RDyn(object):
                         continue
                     cid = max(self.communities.keys()) + 1
                     chosen.extend([ids[0], cid])
+                    communities_involved.extend([ids[0], cid])
 
                     self.performed_community_action = "%s SPLIT\t%s\t%s\n" % \
                                                       (self.performed_community_action, ids[0], [ids[0], cid])
@@ -283,29 +317,32 @@ class RDyn(object):
                                                            (len(self.communities[ids[0]])-1) * (1-self.sigma))
 
         self.out_events.flush()
-        return self.node_to_com, self.communities
+        if not simplified:
+            communities_involved = self.communities.keys()
 
-    def output_communities(self, it):
+        return self.node_to_com, self.communities, communities_involved
+
+    def __output_communities(self):
 
         self.total_coms = len(self.communities)
-        out = open("%s/communities-%s.txt" % (self.output_dir, it), "w")
+        out = open("%s/communities-%s.txt" % (self.output_dir, self.it), "w")
         for c, v in self.communities.iteritems():
             out.write("%s\t%s\n" % (c, v))
         out.flush()
         out.close()
 
-        outg = open("%s/graph-%s.txt" % (self.output_dir, it), "w")
+        outg = open("%s/graph-%s.txt" % (self.output_dir, self.it), "w")
         for e in self.graph.edges():
             outg.write("%s\t%s\n" % (e[0], e[1]))
         outg.flush()
         outg.close()
 
-    def get_community_size_distribution(self, mins=3):
+    def __get_community_size_distribution(self, mins=3):
         cv, nc = 0, 2
         cms = []
 
         nc += 2
-        com_s = self.truncated_power_law(2, self.size/self.avg_deg, mins)
+        com_s = self.__truncated_power_law(2, self.size/self.avg_deg, mins)
 
         exp_com_s = com_s.rvs(size=self.size)
 
@@ -328,7 +365,7 @@ class RDyn(object):
 
         return sorted(cms, reverse=True)
 
-    def execute(self):
+    def execute(self, simplified=True):
         """
 
         :return:
@@ -338,40 +375,46 @@ class RDyn(object):
             exit(0)
 
         # generate pawerlaw degree sequence
-        self.exp_node_degs, mind = self.get_degree_sequence()
+        self.exp_node_degs, mind = self.__get_degree_sequence()
 
         # generate community size dist
-        exp_com_s = self.get_community_size_distribution(mins=mind+1)
+        exp_com_s = self.__get_community_size_distribution(mins=mind+1)
 
         # assign node to community
-        self.get_assignation(exp_com_s)
+        self.__get_assignation(exp_com_s)
 
         self.total_coms = len(self.communities)
 
-        count = 0
         # main loop (iteration)
-        for it in xrange(0, self.iterations):
+        for self.it in tqdm.tqdm(range(0, self.iterations), ncols=100):
 
             # community check and event generation
-            if it > 0 and self.test_communities(self.conductance):
-                self.node_to_com, self.communities = self.generate_event(it)
+            comp = nx.number_connected_components(self.graph)
+            if self.it > 0 and comp <= len(self.communities):
+                if self.__test_communities():
+                    self.node_to_com, self.communities, self.communities_involved = self.__generate_event(simplified)
 
             # node removal
             ar = random.random()
             if ar < self.del_node:
-                self.remove_node(it, count)
-                print "Node removed: ", self.graph.number_of_nodes()
+                self.__remove_node()
 
             # node addition
             ar = random.random()
             if ar < self.new_node:
-                self.add_node()
-                print "New Node: ", self.graph.number_of_nodes()
+                self.__add_node()
 
             self.out_interactions.flush()
 
-            nodes = self.graph.nodes()
-            random.shuffle(nodes)
+            # get nodes within selected communities
+            if len(self.communities_involved) == 0:
+                nodes = self.graph.nodes()
+            else:
+                nodes = []
+                for ci in self.communities_involved:
+                    nodes.extend(self.communities[ci])
+                nodes = set(nodes)
+            random.shuffle(list(nodes))
 
             # inner loop (nodes)
             for n in nodes:
@@ -386,7 +429,7 @@ class RDyn(object):
                 removal = []
                 for n1 in nn:
                     delay = self.graph.get_edge_data(n, n1)['d']
-                    if delay == it:
+                    if delay == self.it:
                         removal.append(n1)
 
                 # removal phase
@@ -399,12 +442,12 @@ class RDyn(object):
                             or r > self.renewal and self.node_to_com[n1] != self.node_to_com[n]:
 
                         # Exponential decay
-                        timeout = (it + 1) + int(random.expovariate(self.lambdad))
+                        timeout = (self.it + 1) + int(random.expovariate(self.lambdad))
                         self.graph.edge[n][n1]["d"] = timeout
 
                     else:
                         # edge to be removed
-                        self.out_interactions.write("%s\t%s\t-\t%s\t%s\n" % (it, count, n, n1))
+                        self.out_interactions.write("%s\t%s\t-\t%s\t%s\n" % (self.it, self.count, n, n1))
                         self.graph.remove_edge(n, n1)
 
                 if self.graph.degree(n) >= self.exp_node_degs[n]:
@@ -414,7 +457,7 @@ class RDyn(object):
                 action = random.random()
 
                 # the node has not yet reached it expected degree and it acts in this round
-                if self.graph.degree(n) < self.exp_node_degs[n] and (action <= self.paction or it == 0):
+                if self.graph.degree(n) < self.exp_node_degs[n] and (action <= self.paction or self.it == 0):
 
                     com_nodes = set(self.communities[self.node_to_com[n]])
 
@@ -443,13 +486,13 @@ class RDyn(object):
                                 continue
 
                         # Interaction Exponential decay
-                        timeout = (it + 1) + int(random.expovariate(self.lambdad))
+                        timeout = (self.it + 1) + int(random.expovariate(self.lambdad))
 
                         # Edge insertion
                         if target is not None and not self.graph.has_edge(n, target) and target != n:
                             self.graph.add_edge(n, target, {"d": timeout})
-                            count += 1
-                            self.out_interactions.write("%s\t%s\t+\t%s\t%s\n" % (it, count, n, target))
+                            self.count += 1
+                            self.out_interactions.write("%s\t%s\t+\t%s\t%s\n" % (self.it, self.count, n, target))
                         else:
                             continue
 
@@ -471,21 +514,56 @@ class RDyn(object):
 
                         # PA selection on available community nodes
                         if len(candidates) > 0:
-                            candidatesp = np.array(candidates.values(), dtype='float') / sum(candidates.values())
-                            target = np.random.choice(candidates.keys(), 1, list(candidatesp))[0]
+                            candidatesp = list(np.array(candidates.values(), dtype='float') / sum(candidates.values()))
+                            target = np.random.choice(candidates.keys(), 1, candidatesp)[0]
 
                             if self.graph.has_node(target) and not self.graph.has_edge(n, target):
 
                                 # Interaction exponential decay
-                                timeout = (it + 1) + int(random.expovariate(self.lambdad))
+                                timeout = (self.it + 1) + int(random.expovariate(self.lambdad))
                                 self.graph.add_edge(n, target, {"d": timeout})
-                                count += 1
-                                self.out_interactions.write("%s\t%s\t+\t%s\t%s\n" % (it, count, n, target))
+                                self.count += 1
+                                self.out_interactions.write("%s\t%s\t+\t%s\t%s\n" % (self.it, self.count, n, target))
 
-        self.output_communities(self.iterations)
+        self.__output_communities()
         self.out_events.write("%s\n\t%s\n" % (self.iterations, self.performed_community_action))
         self.out_interactions.flush()
         self.out_interactions.close()
         self.out_events.flush()
         self.out_events.close()
         return self.stable
+
+
+if __name__ == "__main__":
+    import argparse
+
+    print "-------------------------------------"
+    print "               {RDyn}                "
+    print "           Graph Generator      "
+    print "     Handling Community Dynamics  "
+    print "-------------------------------------"
+    print "Author: ", __author__
+    print "Email:  ", __email__
+    print "------------------------------------\n"
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('nodes', type=int, help='Number of nodes', default=1000)
+    parser.add_argument('iterations', type=int, help='Number of iterations', default=1000)
+    parser.add_argument('simplified', type=bool, help='Simplified execution', default=True)
+    parser.add_argument('-d', '--avg_degree', type=int, help='Average node degree', default=15)
+    parser.add_argument('-s', '--sigma', type=float, help='Sigma', default=0.7)
+    parser.add_argument('-l', '--lbd', type=float, help='Lambda community size distribution', default=1)
+    parser.add_argument('-a', '--alpha', type=int, help='Alpha degree distribution', default=3)
+    parser.add_argument('-p', '--prob_action', type=float, help='Probability of node action', default=1)
+    parser.add_argument('-r', '--prob_renewal', type=float, help='Probability of edge renewal', default=0.8)
+    parser.add_argument('-q', '--quality_threshold', type=float, help='Conductance quality threshold', default=0.3)
+    parser.add_argument('-n', '--new_nodes', type=float, help='Probability of node appearance', default=0)
+    parser.add_argument('-j', '--delete_nodes', type=float, help='Probability of node vanishing', default=0)
+    parser.add_argument('-e', '--max_events', type=int, help='Max number of community events for stable iteration', default=1)
+
+    args = parser.parse_args()
+    rdyn = RDyn(size=args.nodes, iterations=args.iterations, avg_deg=args.avg_degree,
+                sigma=args.sigma, lambdad=args.lbd, alpha=args.alpha, paction=args.prob_action,
+                prenewal=args.prob_renewal, quality_threshold=args.quality_threshold,
+                new_node=args.new_nodes, del_node=args.delete_nodes, max_evts=args.max_events)
+    rdyn.execute(simplified=args.simplified)
