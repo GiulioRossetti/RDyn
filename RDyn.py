@@ -118,7 +118,9 @@ class RDyn(object):
         x = np.arange(1, maxv + 1, dtype='float')
         pmf = 1 / x ** alpha
         pmf /= pmf.sum()
-        return stats.rv_discrete(values=(range(minv, maxv + 1), pmf))
+        ds = stats.rv_discrete(values=(range(minv, maxv + 1), pmf))
+
+        return ds
 
     def __add_node(self):
         nid = self.size
@@ -165,6 +167,7 @@ class RDyn(object):
         while True:
             exp_deg_dist = self.__truncated_power_law(self.exponent, self.size, int(math.ceil(minx)))
             degs = list(exp_deg_dist.rvs(size=self.size))
+
             if nx.is_valid_degree_sequence(degs):
                 return degs, int(minx)
 
@@ -343,7 +346,6 @@ class RDyn(object):
 
         nc += 2
         com_s = self.__truncated_power_law(2, self.size/self.avg_deg, mins)
-
         exp_com_s = com_s.rvs(size=self.size)
 
         # complete coverage
@@ -390,7 +392,7 @@ class RDyn(object):
 
             # community check and event generation
             comp = nx.number_connected_components(self.graph)
-            if self.it > 0 and comp <= len(self.communities):
+            if self.it > 2*self.avg_deg and comp <= len(self.communities):
                 if self.__test_communities():
                     self.node_to_com, self.communities, self.communities_involved = self.__generate_event(simplified)
 
@@ -553,7 +555,7 @@ if __name__ == "__main__":
     parser.add_argument('-d', '--avg_degree', type=int, help='Average node degree', default=15)
     parser.add_argument('-s', '--sigma', type=float, help='Sigma', default=0.7)
     parser.add_argument('-l', '--lbd', type=float, help='Lambda community size distribution', default=1)
-    parser.add_argument('-a', '--alpha', type=int, help='Alpha degree distribution', default=3)
+    parser.add_argument('-a', '--alpha', type=int, help='Alpha degree distribution', default=2.5)
     parser.add_argument('-p', '--prob_action', type=float, help='Probability of node action', default=1)
     parser.add_argument('-r', '--prob_renewal', type=float, help='Probability of edge renewal', default=0.8)
     parser.add_argument('-q', '--quality_threshold', type=float, help='Conductance quality threshold', default=0.3)

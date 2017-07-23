@@ -17,6 +17,8 @@ The current release is shipped with *only* **conductance** as community quality 
 
 In order to speed up the computation a ``simplified`` flag has been introduced: setting it to ``True`` community quality is checked incrementally only on communities selected for merge/split operations.
 
+**NB:** when set the ``simplified=True`` an approximation of the original process is executed: some network characteristics can be not preserved (e.g. degree distribution, interactions time to live).
+
 # Execution
 
 The algorithm can be used as standalone program as well as integrated in python scripts.
