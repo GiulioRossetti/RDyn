@@ -1,5 +1,12 @@
 # RDyn: graph benchmark handling community dynamics
 
+[![Build Status](https://travis-ci.org/GiulioRossetti/RDyn.svg?branch=master)](https://travis-ci.org/GiulioRossetti/RDyn)
+[![Coverage Status](https://coveralls.io/repos/github/GiulioRossetti/RDyn/badge.svg?branch=master)](https://coveralls.io/github/GiulioRossetti/RDyn?branch=master)
+[![pyversions](https://img.shields.io/pypi/pyversions/rdyn.svg)](https://badge.fury.io/py/RDyn)
+[![PyPI version](https://badge.fury.io/py/rdyn.svg)](https://badge.fury.io/py/RDyn)
+[![BCH compliance](https://bettercodehub.com/edge/badge/GiulioRossetti/RDyn?branch=master)](https://bettercodehub.com/)
+
+
 Graph models provide an understanding of the dynamics of network formation and evolution; as a direct consequence, synthesizing graphs having controlled topology and planted partitions has been often identified as a strategy to describe benchmarks able to assess the performances of community discovery algorithm. However, one relevant aspect of real-world networks has been ignored by benchmarks proposed so far: community dynamics. As time goes by network communities rise, fall and may interact with each other generating merges and splits. Indeed, during the last decade dynamic community discovery has become a very active research field: in order to provide a coherent environment to test novel algorithms aimed at identifying mutable network partitions we introduce 
 RDyn, an approach able to generates dynamic networks along with time-dependent ground-truth partitions having tunable quality.
 
@@ -10,6 +17,15 @@ If you use our algorithm please cite the following works:
 > ["RDyn: graph benchmark handling community dynamics."](https://academic.oup.com/comnet/article-abstract/doi/10.1093/comnet/cnx016/3925036/text-RD-small-text-YN-graph-benchmark-handling) 
 > Journal of Complex Networks 2017. 
 > doi:10.1093/comnet/cnx016
+
+## Installation
+
+In order to install the package just download (or clone) the current project and copy the demon folder in the root of your application.
+
+Alternatively use pip:
+```bash
+sudo pip install rdyn
+```
 
 # Generator Characteristics
 For the main specifics of the RDyn algorithm please refer to the original publication.
@@ -64,7 +80,7 @@ RDyn can be also executed within a python program.
 In order to generate a dynamic network with the default parameter values just use the following snippet
 
 ```python
-from RDyn import RDyn
+from rdyn import RDyn
 rdb = RDyn()
 rdb.execute(simplified=True)
 ```
@@ -131,7 +147,7 @@ Example:
 
 RDyn is written in python and requires the following package to run:
 - python>=2.7.11
-- networkx=1.11
-- numpy=1.11.1
-- scipy=0.17.0
+- networkx==1.11
+- numpy==1.11.1
+- scipy==0.17.0
 - tqdm

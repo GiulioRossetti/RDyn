@@ -5,6 +5,9 @@ import numpy as np
 import random
 import scipy.stats as stats
 import tqdm
+import sys
+import past.builtins
+import future.utils
 
 __author__ = 'Giulio Rossetti'
 __license__ = "GPL"
@@ -61,9 +64,9 @@ class RDyn(object):
 
     def __get_assignation(self, community_sizes):
 
-        degs = [(i, self.exp_node_degs[i]) for i in xrange(0, len(self.exp_node_degs))]
+        degs = [(i, self.exp_node_degs[i]) for i in past.builtins.xrange(0, len(self.exp_node_degs))]
 
-        for c in xrange(0, len(community_sizes)):
+        for c in past.builtins.xrange(0, len(community_sizes)):
             self.communities[c] = []
 
         unassigned = []
@@ -71,7 +74,7 @@ class RDyn(object):
         for n in degs:
             nid,  nd = n
             assigned = False
-            for c in xrange(0, len(community_sizes)):
+            for c in past.builtins.xrange(0, len(community_sizes)):
                 c_size = community_sizes[c]
                 c_taken = len(self.communities[c])
                 if c_size/float(nd) >= self.sigma and c_taken < c_size:
@@ -81,12 +84,12 @@ class RDyn(object):
             if not assigned:
                 unassigned.append(n)
 
-        slots_available = [(k, (community_sizes[k] - len(self.communities[k]))) for k in xrange(0, len(community_sizes))
+        slots_available = [(k, (community_sizes[k] - len(self.communities[k]))) for k in past.builtins.xrange(0, len(community_sizes))
                            if (community_sizes[k] - len(self.communities[k])) > 0]
 
         if len(unassigned) > 0:
             for i in unassigned:
-                for c in xrange(0, len(slots_available)):
+                for c in past.builtins.xrange(0, len(slots_available)):
                     cid, av = slots_available[c]
                     if av > 0:
                         self.communities[cid].append(i[0])
@@ -95,7 +98,7 @@ class RDyn(object):
                         break
 
         ntc = {}
-        for cid, nodes in self.communities.iteritems():
+        for cid, nodes in future.utils.iteritems(self.communities):
             for n in nodes:
                 ntc[n] = cid
 
@@ -137,7 +140,7 @@ class RDyn(object):
 
     def __remove_node(self):
 
-        com_sel = [c for c, v in self.communities.iteritems() if len(v) > 3]
+        com_sel = [c for c, v in future.utils.iteritems(self.communities) if len(v) > 3]
         if len(com_sel) > 0:
             cid = random.sample(com_sel, 1)[0]
             s = self.graph.subgraph(self.communities[cid])
@@ -153,7 +156,7 @@ class RDyn(object):
             self.node_to_com[nid] = -1
             nodes = set(self.communities[cid])
             self.communities[cid] = list(nodes - {nid})
-            self.graph.__remove_node(nid)
+            self.graph.remove_node(nid)
 
     def __get_degree_sequence(self):
         """
@@ -254,7 +257,7 @@ class RDyn(object):
                 candidates = list(set(self.communities.keys()) - set(chosen))
 
                 # promote merging of small communities
-                cl = [len(v) for c, v in self.communities.iteritems() if c in candidates]
+                cl = [len(v) for c, v in future.utils.iteritems(self.communities) if c in candidates]
                 comd = 1-np.array(cl, dtype="float")/sum(cl)
                 comd /= sum(comd)
 
@@ -283,7 +286,7 @@ class RDyn(object):
 
                 candidates = list(set(self.communities.keys()) - set(chosen))
 
-                cl = [len(v) for c, v in self.communities.iteritems() if c in candidates]
+                cl = [len(v) for c, v in future.utils.iteritems(self.communities) if c in candidates]
                 comd = np.array(cl, dtype="float")/sum(cl)
 
                 try:
@@ -329,7 +332,7 @@ class RDyn(object):
 
         self.total_coms = len(self.communities)
         out = open("%s/communities-%s.txt" % (self.output_dir, self.it), "w")
-        for c, v in self.communities.iteritems():
+        for c, v in future.utils.iteritems(self.communities):
             out.write("%s\t%s\n" % (c, v))
         out.flush()
         out.close()
@@ -359,7 +362,7 @@ class RDyn(object):
             if sum(cms) <= self.size:
                 break
 
-            for cm in xrange(-1, -len(cms), -1):
+            for cm in past.builtins.xrange(-1, -len(cms), -1):
                 if sum(cms) <= self.size:
                     break
                 elif sum(cms) > self.size and cms[cm] > mins:
@@ -373,7 +376,7 @@ class RDyn(object):
         :return:
         """
         if self.size < 1000:
-            print "Minimum network size: 1000 nodes"
+            print("Minimum network size: 1000 nodes")
             exit(0)
 
         # generate pawerlaw degree sequence
@@ -536,17 +539,17 @@ class RDyn(object):
         return self.stable
 
 
-if __name__ == "__main__":
+def main():
     import argparse
 
-    print "-------------------------------------"
-    print "               {RDyn}                "
-    print "           Graph Generator      "
-    print "     Handling Community Dynamics  "
-    print "-------------------------------------"
-    print "Author: ", __author__
-    print "Email:  ", __email__
-    print "------------------------------------\n"
+    sys.stdout.write("-------------------------------------\n")
+    sys.stdout.write("               {RDyn}                \n")
+    sys.stdout.write("           Graph Generator      \n")
+    sys.stdout.write("     Handling Community Dynamics  \n")
+    sys.stdout.write("-------------------------------------\n")
+    sys.stdout.write("Author: " + __author__ + "\n")
+    sys.stdout.write("Email:  " + __email__ + "\n")
+    sys.stdout.write("------------------------------------\n")
 
     parser = argparse.ArgumentParser()
     parser.add_argument('nodes', type=int, help='Number of nodes', default=1000)

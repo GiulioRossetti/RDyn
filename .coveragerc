@@ -1,0 +1,9 @@
+[run]
+omit =
+ setup.py
+ rdyn/__main__.py
+ rdyn/test/*
+
+[report]
+exclude_lines =
+    def main()
