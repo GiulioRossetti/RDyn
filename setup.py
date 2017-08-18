@@ -9,7 +9,7 @@ __email__ = "giulio.rossetti@gmail.com"
 #    long_description = f.read()
 
 setup(name='rdyn',
-      version='0.2.0',
+      version='0.2.1',
       license='BSD-2-Clause',
       description='Graph benchmark handling community dynamics',
       url='https://github.com/GiulioRossetti/RDyn',

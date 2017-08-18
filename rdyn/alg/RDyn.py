@@ -48,9 +48,11 @@ class RDyn(object):
         # initialize the graph
         self.graph = nx.empty_graph(self.size)
 
+        self.base = os.getcwd()
+
         # initialize output files
-        self.output_dir = "results%s%s_%s_%s_%s_%s_%s_%s" % \
-            (os.sep, self.size, self.iterations, self.avg_deg, self.sigma, self.renewal, self.quality_threshold, self.max_evts)
+        self.output_dir = "%s%sresults%s%s_%s_%s_%s_%s_%s_%s" % \
+            (self.base, os.sep, os.sep, self.size, self.iterations, self.avg_deg, self.sigma, self.renewal, self.quality_threshold, self.max_evts)
 
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
@@ -331,13 +333,13 @@ class RDyn(object):
     def __output_communities(self):
 
         self.total_coms = len(self.communities)
-        out = open("%s/communities-%s.txt" % (self.output_dir, self.it), "w")
+        out = open("%s%scommunities-%s.txt" % (self.output_dir, os.sep, self.it), "w")
         for c, v in future.utils.iteritems(self.communities):
             out.write("%s\t%s\n" % (c, v))
         out.flush()
         out.close()
 
-        outg = open("%s/graph-%s.txt" % (self.output_dir, self.it), "w")
+        outg = open("%s%sgraph-%s.txt" % (self.output_dir, os.sep, self.it), "w")
         for e in self.graph.edges():
             outg.write("%s\t%s\n" % (e[0], e[1]))
         outg.flush()
