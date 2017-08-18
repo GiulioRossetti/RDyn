@@ -70,7 +70,7 @@ All parameters have a default value.
 In order to generate a dynamic graph of 1000 nodes for 1000 iterations applying the simplified version of the algorithm just use:
 
 ```bash
-python RDyn.py 1000 1000 True
+python rdyn 1000 1000 True
 ```
 The minimum number of nodes allowed is 1000.
 
