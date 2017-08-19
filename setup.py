@@ -9,7 +9,7 @@ __email__ = "giulio.rossetti@gmail.com"
 #    long_description = f.read()
 
 setup(name='rdyn',
-      version='0.2.1',
+      version='0.3.0',
       license='BSD-2-Clause',
       description='Graph benchmark handling community dynamics',
       url='https://github.com/GiulioRossetti/RDyn',
@@ -36,7 +36,7 @@ setup(name='rdyn',
           # that you indicate whether you support Python 2, Python 3 or both.
           'Programming Language :: Python',
           'Programming Language :: Python :: 2.7',
-          # 'Programming Language :: Python :: 3'
+          'Programming Language :: Python :: 3'
       ],
       keywords=['complex-networks', 'network generator', 'dynamic networks', 'community dynamics'],
       install_requires=['networkx',  'future', ''],
