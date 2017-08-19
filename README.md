@@ -72,7 +72,6 @@ In order to generate a dynamic graph of 1000 nodes for 1000 iterations applying 
 ```bash
 python rdyn 1000 1000 True
 ```
-The minimum number of nodes allowed is 1000.
 
 ## As python library
 
@@ -149,5 +148,6 @@ RDyn is written in python and requires the following package to run:
 - python>=2.7.11
 - networkx==1.11
 - numpy==1.11.1
-- scipy==0.17.0
 - tqdm
+- six
+- future

@@ -1,1 +1,1 @@
-from rdyn.alg.RDyn import RDyn
+from rdyn.alg.RDyn_v2 import RDynV2 as RDyn
