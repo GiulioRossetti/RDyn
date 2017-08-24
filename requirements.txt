@@ -1,4 +1,4 @@
-future
+future==0.16.0
 networkx==1.11
-tqdm
-six
+tqdm==4.15.0
+six==1.10.0
