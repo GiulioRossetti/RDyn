@@ -4,6 +4,7 @@
 [![Coverage Status](https://coveralls.io/repos/github/GiulioRossetti/RDyn/badge.svg?branch=master)](https://coveralls.io/github/GiulioRossetti/RDyn?branch=master)
 [![pyversions](https://img.shields.io/pypi/pyversions/rdyn.svg)](https://badge.fury.io/py/RDyn)
 [![PyPI version](https://badge.fury.io/py/rdyn.svg)](https://badge.fury.io/py/RDyn)
+[![Updates](https://pyup.io/repos/github/GiulioRossetti/RDyn/shield.svg)](https://pyup.io/repos/github/GiulioRossetti/RDyn/)
 [![BCH compliance](https://bettercodehub.com/edge/badge/GiulioRossetti/RDyn?branch=master)](https://bettercodehub.com/)
 
 
