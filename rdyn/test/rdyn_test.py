@@ -20,5 +20,6 @@ class RDynTestCase(unittest.TestCase):
 
         shutil.rmtree("results")
 
+
 if __name__ == '__main__':
     unittest.main()

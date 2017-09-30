@@ -119,7 +119,7 @@ class RDynV2(object):
 
                         # Exponential decay
                         timeout = (self.it + 1) + int(random.expovariate(self.lambdad))
-                        self.graph.edge[n][n1]["d"] = timeout
+                        self.graph.adj[n][n1]["d"] = timeout
 
                     else:
                         # edge to be removed
@@ -181,7 +181,7 @@ class RDynV2(object):
 
         # Edge insertion
         if target is not None and not self.graph.has_edge(n, target) and target != n:
-            self.graph.add_edge(n, target, {"d": timeout})
+            self.graph.add_edge(n, target, d=timeout)
             self.count += 1
             self.out_interactions.write("%s\t%s\t+\t%s\t%s\n" % (self.it, self.count, n, target))
 
@@ -206,14 +206,14 @@ class RDynV2(object):
             if self.graph.has_node(target) and not self.graph.has_edge(n, target):
                 # Interaction exponential decay
                 timeout = (self.it + 1) + int(random.expovariate(self.lambdad))
-                self.graph.add_edge(n, target, {"d": timeout})
+                self.graph.add_edge(n, target, d=timeout)
                 self.count += 1
                 self.out_interactions.write("%s\t%s\t+\t%s\t%s\n" % (self.it, self.count, n, target))
 
     def __compute_degree_sequence(self):
         minv = float(self.avg_deg) / (2 ** (1 / (self.exponent - 1)))
         s = [2]
-        while not nx.is_valid_degree_sequence(s):
+        while not nx.is_graphical(s):
             s = list(map(int, nx.utils.powerlaw_sequence(self.graph.number_of_nodes(), self.exponent)))
             x = [int(p + minv) for p in s]
         self.exp_node_degs = sorted(x)
@@ -282,7 +282,7 @@ class RDynV2(object):
                 i = random.sample(six.next(cs), 1)[0]
                 j = random.sample(six.next(cs), 1)[0]
                 timeout = (self.it + 1) + int(random.expovariate(self.lambdad))
-                self.graph.add_edge(i, j, {"d": timeout})
+                self.graph.add_edge(i, j, d=timeout)
                 self.count += 1
                 self.out_interactions.write("%s\t%s\t+\t%s\t%s\n" % (self.it, self.count, i, j))
                 return False
@@ -309,7 +309,7 @@ class RDynV2(object):
                 self.communities_involved = list(set(self.communities_involved))
 
                 for i in community.nodes():
-                    nn = self.graph.neighbors(i)
+                    nn = list(self.graph.neighbors(i))
                     for j in nn:
                         if j not in community.nodes():
                             self.count += 1
@@ -422,7 +422,6 @@ class RDynV2(object):
         else:
             self.communities_involved = communities_involved
 
-
     def __add_node(self):
         nid = self.size
         self.graph.add_node(nid)
@@ -442,10 +441,12 @@ class RDynV2(object):
         if len(com_sel) > 0:
             cid = random.sample(com_sel, 1)[0]
             s = self.graph.subgraph(self.communities[cid])
-            min_value = min(s.degree().values())
-            candidates = [k for k in s.degree() if s.degree()[k] == min_value]
+            sd = dict(s.degree)
+            min_value = min(sd.values())
+            candidates = [k for k in sd if sd[k] == min_value]
             nid = random.sample(candidates, 1)[0]
-            for e in self.graph.edges([nid]):
+            eds = list(self.graph.edges([nid]))
+            for e in eds:
                 self.count += 1
                 self.out_interactions.write("%s\t%s\t-\t%s\t%s\n" % (self.it, self.count, e[0], e[1]))
                 self.graph.remove_edge(e[0], e[1])
