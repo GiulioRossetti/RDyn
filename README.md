@@ -6,6 +6,8 @@
 [![PyPI version](https://badge.fury.io/py/rdyn.svg)](https://badge.fury.io/py/RDyn)
 [![Updates](https://pyup.io/repos/github/GiulioRossetti/RDyn/shield.svg)](https://pyup.io/repos/github/GiulioRossetti/RDyn/)
 [![BCH compliance](https://bettercodehub.com/edge/badge/GiulioRossetti/RDyn?branch=master)](https://bettercodehub.com/)
+[![DOI](https://zenodo.org/badge/60696866.svg)](https://zenodo.org/badge/latestdoi/60696866)
+
 
 
 Graph models provide an understanding of the dynamics of network formation and evolution; as a direct consequence, synthesizing graphs having controlled topology and planted partitions has been often identified as a strategy to describe benchmarks able to assess the performances of community discovery algorithm. However, one relevant aspect of real-world networks has been ignored by benchmarks proposed so far: community dynamics. As time goes by network communities rise, fall and may interact with each other generating merges and splits. Indeed, during the last decade dynamic community discovery has become a very active research field: in order to provide a coherent environment to test novel algorithms aimed at identifying mutable network partitions we introduce 
